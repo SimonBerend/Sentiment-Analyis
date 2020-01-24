@@ -121,46 +121,14 @@ ctrl <- trainControl(method = "repeatedcv",
                      number = 4
                     )
 
-# RFE MODEL : C5.0--------------------------------------------------------------
-start_time <- Sys.time()
-
-model.rfe.c5 <- train(iphonesentiment ~ .,
-                    data = rfeTrain,
-                    method = "C5.0",
-                    tuneLength = 2,
-                    # tuneGrid = expand.grid(mtry = c(2, 18, 60, 100)),
-                    # tuneGrid = expand.grid(n = c(1:10)),
-                    trControl = ctrl,
-                    preProc = c("center", "scale")
-                    )
-
-end_time <- Sys.time()
-end_time - start_time
-
 # RFE MODEL :  RF--------------------------------------------------------------
 start_time <- Sys.time()
 
-model.rfe.rf <- train(iphonesentiment ~ .,
+model.rfe.rf.tune <- train(iphonesentiment ~ .,
                       data = rfeTrain,
                       method = "rf", 
                       # tuneLength = 2,
-                      # tuneGrid = expand.grid(mtry = c(2, 18, 60, 100)),
-                      # tuneGrid = expand.grid(n = c(1:10)),
-                      trControl = ctrl,
-                      preProc = c("center", "scale")
-)
-
-end_time <- Sys.time()
-end_time - start_time
-
-# RFE MODEL :  SVM --------------------------------------------------------------
-start_time <- Sys.time()
-
-model.rfe.svm <- train(iphonesentiment ~ .,
-                      data = rfeTrain,
-                      method = "svmLinear2", 
-                      # tuneLength = 2,
-                      # tuneGrid = expand.grid(mtry = c(2, 18, 60, 100)),
+                      tuneGrid = expand.grid(mtry = c(2, 3, 4)),
                       # tuneGrid = expand.grid(n = c(1:10)),
                       trControl = ctrl,
                       preProc = c("center", "scale")
@@ -185,16 +153,7 @@ model.rfe.kknn <- train(iphonesentiment ~ .,
 end_time <- Sys.time()
 end_time - start_time
 
-
-# Run Predictions ---------------------------------------------------------
-predict_c5 <- predict(model.rfe.c5, rfeTest)
-predict_rf <- predict(model.rfe.rf, rfeTest)
-predict_svm <- predict(model.rfe.svm, rfeTest)
-predict_kknn <- predict(model.rfe.kknn, rfeTest)
-
-
-
-
+# Check Model Metrics -----------------------------------------------------
 # collect resamples
 results <- resamples(list(C5 =  model.rfe.c5,
                           RandomForest = model.rfe.rf,
@@ -207,23 +166,85 @@ summary(results)
 # boxplot of results
 bwplot(results)
 
-
-
-
-
-
-
 # Inspect Performance -----------------------------------------------------
 plot(model.rfe.c5)
-plot(varImp(model.rfe.c5))
+plot(model.rfe.rf)
+
+plot(varImp(model.rfe.c5), main = "C5.0")
+plot(varImp(model.rfe.rf), main = "rf")
 
 
+# Run Predictions and check real metrics ---------------------------------------------------------
+# run predictions
+predict_c5 <- predict(model.rfe.c5, rfeTest)
+predict_rf <- predict(model.rfe.rf, rfeTest)
+predict_svm <- predict(model.rfe.svm, rfeTest)
+predict_kknn <- predict(model.rfe.kknn, rfeTest)
 
+
+# check performance
+yes <- list(rf = postResample(predict_rf, rfeTest$iphonesentiment),
+            c5 = postResample(predict_c5, rfeTest$iphonesentiment),
+            svm = postResample(predict_svm, rfeTest$iphonesentiment),
+            kknn = postResample(predict_kknn, rfeTest$iphonesentiment)
+                  )
+
+cm_list <- list(rf = confusionMatrix(predict_rf, rfeTest$iphonesentiment),
+                c5 = confusionMatrix(predict_c5, rfeTest$iphonesentiment)
+                )
+                
+
+
+# Check RF Model on "All" set ------------------------------------------
+start_time <- Sys.time()
+
+model.all.rf.tune <- train(iphonesentiment ~ .,
+                      data = allTrain,
+                      method = "rf", 
+                      # tuneLength = 2,
+                      tuneGrid = expand.grid(mtry = c(2, 3, 4)),
+                      # tuneGrid = expand.grid(n = c(1:10)),
+                      trControl = ctrl,
+                      preProc = c("center", "scale")
+)
+
+end_time <- Sys.time()
+end_time - start_time
+
+
+# compare results of rf models ---------------------------------------------------------
+# Check Model Metrics -----------------------------------------------------
+# collect resamples
+results.rf <- resamples(list(All =  model.all.rf,
+                          rfe = model.rfe.rf,
+                          all.tune = model.all.rf.tune,
+                          rfe.tune = model.rfe.rf.tune))
+
+results.rf$values
+
+
+# boxplot of results
+bwplot(results.rf, main = "Random Forest metrics")
+
+# Inspect Performance -----------------------------------------------------
+plot(model.all.rf.tune)
+plot(model.all.rf)
+
+plot(varImp(model.rfe.rf.tune), main = "tune")
+plot(varImp(model.rfe.rf), main = "rf")
+
+
+predict_rf_tune <- predict(model.rfe.rf.tune, rfeTest)
+
+confusionMatrix(predict_rf, rfeTest$iphonesentiment)
+confusionMatrix(predict_rf_tune, rfeTest$iphonesentiment)
+
+
+# Go for the tuned rf model and check see if you can balance out the data set
 
 
 # Distinct cases only, to balance out data set ------------------------
 distinct()
-
 
 
 
