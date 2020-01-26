@@ -240,8 +240,19 @@ confusionMatrix(predict_rf, rfeTest$iphonesentiment)
 confusionMatrix(predict_rf_tune, rfeTest$iphonesentiment)
 
 
-# Go for the tuned rf model and check see if you can balance out the data set
+# Go for the tuned rfe rf model and check see if you can balance out the data set
 
+
+# Feature selection : recode() the dependent variable ---------------------
+# create a new dataset that will be used for recoding sentiment
+appleRC <- appleRFE
+# recode sentiment to combine factor levels 0 & 1 and 4 & 5
+appleRC$iphonesentiment <- recode(appleRC$iphonesentiment, '0' = 1, '1' = 1, '2' = 2, '3' = 3, '4' = 4, '5' = 4) 
+# set as ordered factor
+appleRC$iphonesentiment %<>% factor(ordered = TRUE)
+
+
+saveRDS(appleRC, "Data/appleRC.rds")
 
 # Distinct cases only, to balance out data set ------------------------
 distinct()
